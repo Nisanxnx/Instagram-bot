@@ -1,0 +1,13 @@
+{
+  "name": "instagram-reply-bot",
+  "version": "0.1.0",
+  "description": "Simple command-based Instagram reply bot (uses Messenger API for Instagram).",
+  "main": "instagram-bot.js",
+  "scripts": {
+    "start": "node instagram-bot.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7"
+  }
+}
