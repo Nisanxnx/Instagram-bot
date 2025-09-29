@@ -1,6 +1,4 @@
 // instagram-bot.js
-// Node.js Express bot that receives Instagram messaging webhooks and routes commands.
-
 const express = require('express');
 const fetch = require('node-fetch');
 const fs = require('fs');
@@ -15,18 +13,33 @@ const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || 'v17.0';
 const IG_USER_ID = process.env.IG_USER_ID || '<INSTAGRAM_USER_ID>';
 const PORT = process.env.PORT || 3000;
 
-// ---- Load command modules ----
+// ---- Load command modules from scripts/cmds ----
 const commands = {};
-const commandsDir = path.join(__dirname, 'commands');
-fs.readdirSync(commandsDir).forEach(file => {
+const cmdsDir = path.join(__dirname, 'scripts', 'cmds');
+fs.readdirSync(cmdsDir).forEach(file => {
   if (file.endsWith('.js')) {
-    const mod = require(path.join(commandsDir, file));
+    const mod = require(path.join(cmdsDir, file));
     if (mod && mod.name && typeof mod.handler === 'function') {
       commands[mod.name] = mod.handler;
       console.log('Loaded command:', mod.name);
     }
   }
 });
+
+// ---- Load events (optional) ----
+const events = {};
+const eventsDir = path.join(__dirname, 'scripts', 'events');
+if (fs.existsSync(eventsDir)) {
+  fs.readdirSync(eventsDir).forEach(file => {
+    if (file.endsWith('.js')) {
+      const mod = require(path.join(eventsDir, file));
+      if (mod && mod.name && typeof mod.handler === 'function') {
+        events[mod.name] = mod.handler;
+        console.log('Loaded event:', mod.name);
+      }
+    }
+  });
+}
 
 // Parse command
 function parseCommand(text) {
@@ -68,6 +81,15 @@ app.post('/webhook', async (req, res) => {
             const from = m.from || value.sender_id || (m.sender && m.sender.id);
             const text = m.text || (m.message && m.message.text) || null;
             if (!from || !text) continue;
+
+            // event handler example (welcome message if user sends "hi")
+            if (text.toLowerCase() === 'hi' && events['welcome']) {
+              const welcomeMsg = await events['welcome']({ from, text });
+              if (welcomeMsg) await sendInstagramReply(from, welcomeMsg);
+              continue;
+            }
+
+            // command handler
             const parsed = parseCommand(text);
             if (parsed && commands[parsed.cmd]) {
               const responseText = await commands[parsed.cmd]({ from, args: parsed.args, originalText: text });
